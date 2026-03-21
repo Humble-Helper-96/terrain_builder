@@ -179,17 +179,18 @@ python3 process_dem.py --help
 Process multiple states, then merge into unified MBTiles:
 
 ```bash
-python3 process_dem.py --state CT
-python3 process_dem.py --state NY
-python3 process_dem.py --state MA
+# Build each state, skip export until you're done
+python3 process_dem.py --state CT --skip-export
+python3 process_dem.py --state NY --skip-export
+python3 process_dem.py --state MA --skip-export
 
-# Export merges all output/contours_*.gpkg and output/hillshade_*.tif
+# Export once at the end — merges all accumulated outputs
 python3 scripts/export_mbtiles.py \
     --output-dir output/ \
     --mbtiles-dir output/mbtiles/
 ```
 
-The `output/` directory accumulates clipped regions across runs.
+The `output/` directory accumulates clipped regions across runs. Use `--skip-export` on each run to avoid redundant MBTiles rebuilds, then export once when you're ready.
 
 ## Understanding the Output
 
