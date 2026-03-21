@@ -1,0 +1,44 @@
+# ============================================
+# Terrain Builder — .gitignore
+# ============================================
+
+# ----- DEM data (large, user-specific) -----
+raw_dem/*.tif
+raw_dem/*.tiff
+
+# ----- Intermediate processing files -----
+reprojected/
+tiles_vrt/
+tmp/
+
+# ----- Output data (large, user-generated) -----
+# Keep the output/ and output/mbtiles/ directories (via .gitkeep)
+# but ignore the actual generated files
+output/*.gpkg
+output/*.tif
+output/mbtiles/*.mbtiles
+
+# ----- Logs -----
+logs/*.log
+
+# ----- Python -----
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# ----- OS junk -----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Editors / IDEs -----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

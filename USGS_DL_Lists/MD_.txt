@@ -1,0 +1,17 @@
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n38w076/USGS_13_n38w076_20220713.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n38w077/USGS_13_n38w077_20220713.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n38w078/USGS_13_n38w078_20211220.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n38w079/USGS_13_n38w079_20211229.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n38w080/USGS_13_n38w080_20211229.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n39w075/USGS_13_n39w075_20210624.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n39w076/USGS_13_n39w076_20250507.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n39w077/USGS_13_n39w077_20250507.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n39w078/USGS_13_n39w078_20250512.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n39w079/USGS_13_n39w079_20250512.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n39w080/USGS_13_n39w080_20230816.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n40w075/USGS_13_n40w075_20210624.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n40w076/USGS_13_n40w076_20250507.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n40w077/USGS_13_n40w077_20250507.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n40w078/USGS_13_n40w078_20250512.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n40w079/USGS_13_n40w079_20230816.tif
+https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/historical/n40w080/USGS_13_n40w080_20230816.tif
