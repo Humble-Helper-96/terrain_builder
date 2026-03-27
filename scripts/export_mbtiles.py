@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Export MBTiles — Terrain Builder
+Export MBTiles for GIS Tool Stack
 
-Merges all clipped outputs and exports to MBTiles.
+Merges all clipped outputs and exports to MBTiles for TileServer GL.
 
 Process:
   1) Scan output/ for all .tif and .gpkg files
   2) Build VRT mosaic from all .tif files --> tmp/hillshade_merged.vrt
   3) Merge all .gpkg files --> tmp/contours_merged.gpkg
-  4) Export hillshade VRT to MBTiles --> output/mbtiles/hillshade.mbtiles
-  5) Export contours to MBTiles --> output/mbtiles/contours.mbtiles
+  4) Export hillshade VRT to MBTiles --> ~/server/gis/tileserver/data/hillshade.mbtiles
+  5) Export contours to MBTiles --> ~/server/gis/tileserver/data/contours.mbtiles
 
 This allows incremental builds - as you add more clipped regions to output/,
 they will be merged into the final MBTiles.
@@ -21,6 +21,7 @@ from pathlib import Path
 import argparse
 import time
 import tempfile
+import shutil
 
 # Import resource monitor
 try:
@@ -71,17 +72,17 @@ def main():
     )
     
     parser.add_argument(
-        '--mbtiles-dir',
-        type=str,
-        default=None,
-        help='Directory for final MBTiles files (default: OUTPUT_DIR/mbtiles)'
-    )
-    
-    parser.add_argument(
         '--tmp-dir',
         type=str,
         default='tmp',
         help='Temporary directory for merged files (default: tmp)'
+    )
+
+    parser.add_argument(
+        '--dest-dir',
+        type=str,
+        default=None,
+        help='Destination directory for output MBTiles files (default: ~/server/gis/tileserver/data)'
     )
     
     args = parser.parse_args()
@@ -99,16 +100,15 @@ def main():
     tmp_dir = Path(args.tmp_dir)
     tmp_dir.mkdir(exist_ok=True)
     
-    # MBTiles output directory — defaults to output/mbtiles if not specified
-    if args.mbtiles_dir:
-        mbtiles_dir = Path(args.mbtiles_dir)
+    if args.dest_dir:
+        tileserver_data = Path(args.dest_dir)
     else:
-        mbtiles_dir = output_dir / 'mbtiles'
-    mbtiles_dir.mkdir(parents=True, exist_ok=True)
+        tileserver_data = Path.home() / 'server' / 'gis' / 'tileserver' / 'data'
+    tileserver_data.mkdir(parents=True, exist_ok=True)
     
     print(f"Output directory:     {output_dir}")
     print(f"Temp directory:       {tmp_dir}")
-    print(f"MBTiles directory:    {mbtiles_dir}")
+    print(f"TileServer data:      {tileserver_data}")
     print()
     
     # Check for outputs
@@ -209,7 +209,7 @@ def main():
         print("=" * 70)
         print()
         
-        hillshade_mbtiles = mbtiles_dir / 'hillshade.mbtiles'
+        hillshade_mbtiles = tileserver_data / 'hillshade.mbtiles'
         
         # Convert VRT to MBTiles
         cmd = [
@@ -245,7 +245,7 @@ def main():
         print("=" * 70)
         print()
         
-        contours_mbtiles = mbtiles_dir / 'contours.mbtiles'
+        contours_mbtiles = tileserver_data / 'contours.mbtiles'
         
         # Create temp directory for GeoJSONSeq files
         with tempfile.TemporaryDirectory(prefix="contours_export_") as temp_export:
@@ -286,12 +286,12 @@ def main():
                 'tippecanoe',
                 '-f',  # overwrite
                 '-o', str(contours_mbtiles),
-                '-Z', '8',  # min zoom
-                '-z', '14',  # max zoom
+                '-Z', '8',   # min zoom
+                '-z', '13',  # max zoom (z14 causes exponential tile growth on dense contour data)
                 '-L', f'contours_major:{major_jsonl}',
                 '-L', f'contours_minor:{minor_jsonl}',
                 '--drop-densest-as-needed',
-                '--extend-zooms-if-still-dropping'
+                '--maximum-tile-bytes', '500000'
             ]
             
             run_command(cmd, "Create vector MBTiles")
