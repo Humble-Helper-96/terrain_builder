@@ -211,18 +211,24 @@ def main():
         
         hillshade_mbtiles = tileserver_data / 'hillshade.mbtiles'
         
-        # Convert VRT to MBTiles
+        # Convert VRT to MBTiles capped at z12
+        # -co ZOOM_LEVEL_STRATEGY=LOWER ensures gdal_translate picks z12 as max
+        # rather than auto-detecting a higher native zoom from pixel resolution
         cmd = [
             'gdal_translate',
             '-of', 'MBTILES',
+            '-co', 'ZOOM_LEVEL_STRATEGY=LOWER',
+            '-co', 'ZOOM_LEVEL=12',
             str(vrt_path),
             str(hillshade_mbtiles)
         ]
         
-        run_command(cmd, "Convert VRT to MBTiles")
+        run_command(cmd, "Convert VRT to MBTiles (max zoom 12)")
         
-        # Add overviews
-        print("\n[INFO] Adding overviews for zoom levels...")
+        # Add overviews to build down to z6
+        # gdaladdo factors are relative to the max zoom tile size:
+        # factor 2 = z11, 4 = z10, 8 = z9, 16 = z8, 32 = z7, 64 = z6
+        print("\n[INFO] Adding overviews for zoom levels 6-11...")
         levels = [2, 4, 8, 16, 32, 64]
         cmd = [
             'gdaladdo',
@@ -230,7 +236,7 @@ def main():
             str(hillshade_mbtiles)
         ] + [str(l) for l in levels]
         
-        run_command(cmd, "Add overviews")
+        run_command(cmd, "Add overviews (z6-z11)")
         
         if hillshade_mbtiles.exists():
             size = format_size(hillshade_mbtiles.stat().st_size)
