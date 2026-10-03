@@ -2,6 +2,9 @@
 
 **Generate hillshade and contour MBTiles from USGS DEM data for TileServer GL.**
 
+> **United States only.** This pipeline is built around USGS 1/3 arc-second DEM
+> tiles and per-state download lists, so it covers US states and territories only.
+
 This pipeline downloads USGS 1/3 arc-second DEM tiles, reprojects them, generates
 contour lines and hillshade rasters, clips them to state or region boundaries, and
 exports two MBTiles files ready to serve with TileServer GL or any MBTiles-compatible

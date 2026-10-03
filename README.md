@@ -2,6 +2,10 @@
 
 A self-contained toolkit for generating contour lines, hillshade, and web-ready MBTiles from USGS Digital Elevation Model (DEM) data.
 
+> **United States only.** Terrain Builder uses USGS 1/3 arc-second DEM data and
+> per-state download lists, so it covers the US (states and territories with USGS
+> coverage). It does not download or support elevation data for other countries.
+
 All paths are relative to the project directory. You can run the script from anywhere — it resolves its own location automatically.
 
 ## What This Does
