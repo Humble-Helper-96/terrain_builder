@@ -225,7 +225,7 @@ def get_valid_regions(shape_files_dir: Path) -> set:
     """
     Return the set of valid region codes by scanning shape_files/ for .gpkg files.
     This automatically includes all states, territories, and special regions
-    (e.g. ConUS, Canada, Caribbean) without requiring a hardcoded list.
+    (e.g. ConUS) without requiring a hardcoded list.
     """
     return {p.stem.upper() for p in shape_files_dir.glob("*.gpkg")}
 
