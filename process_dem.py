@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025 echos6
+# Copyright (c) 2025 Humble-Helper-96
 #
 # Part of the terrain_builder pipeline — see HOW_TO_USE.md for full documentation.
 """
