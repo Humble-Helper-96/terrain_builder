@@ -17,7 +17,8 @@
 #   1. Verify USGS_DL_Lists/<STATE>_data.txt exists
 #   2. Clear raw_dem/ to ensure no leftover tiles from a prior state
 #   3. wget downloads DEM tiles listed in USGS_DL_Lists/<STATE>_data.txt
-#      into raw_dem/  (-c flag resumes partial downloads within a state)
+#      into raw_dem/  (-c flag resumes partial downloads within a state),
+#      logging one OK/SKIP/FAIL line per tile instead of progress bars
 #   4. process_dem.py reprojects, builds VRT, generates contours and
 #      hillshade, clips to state boundary, saves to OUTPUT_DIR
 #   5. --skip-export defers MBTiles generation until all states are done
@@ -25,7 +26,7 @@
 #
 # BEFORE A LARGE BATCH:
 #   Refresh the download lists so stale URLs don't abort the run (a single
-#   404 makes wget exit non-zero and stops this script at that state):
+#   404 fails that tile and stops this script once the state's list is done):
 #
 #     python3 scripts/update_dem_lists.py --verify
 #
@@ -82,6 +83,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAIN_BUILDER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${TERRAIN_BUILDER_DIR}"
+
+# shellcheck source=download_tiles.sh
+source "${SCRIPT_DIR}/download_tiles.sh"
 
 # =============================================================================
 # Configuration — override via environment variables if desired
@@ -199,16 +203,13 @@ for STATE in "${STATES[@]}"; do
     fi
 
     # ------------------------------------------------------------------
-    # Download USGS DEM tiles
-    # -c  : resume partial downloads
-    # -i  : read URLs from file
-    # -P  : destination directory
-    # -q  : quiet (progress still shown via default wget output)
+    # Download USGS DEM tiles — one log line per tile (see download_tiles.sh)
+    # wget -c resumes partial downloads; failed tiles are listed at the end
     # ------------------------------------------------------------------
     echo "[STEP]  Downloading DEM tiles for ${STATE}..."
-    if ! wget -c -i "${DL_LIST}" -P "${RAW_DEM_DIR}"; then
+    if ! download_tile_list "${DL_LIST}" "${RAW_DEM_DIR}"; then
         echo ""
-        echo "[ERROR] wget failed for ${STATE}"
+        echo "[ERROR] Tile download failed for ${STATE}"
         echo "        Check network connectivity and the download list:"
         echo "        ${DL_LIST}"
         echo "        A 404 usually means USGS replaced a tile — refresh the list:"

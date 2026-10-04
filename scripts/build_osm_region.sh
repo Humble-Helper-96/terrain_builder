@@ -50,6 +50,8 @@
 set -uo pipefail
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=download_tiles.sh
+source "$BASE_DIR/scripts/download_tiles.sh"
 cd "$BASE_DIR" || exit 1
 
 WORKERS="${WORKERS:-4}"
@@ -210,7 +212,7 @@ for STATE in $ORDERED; do
     fi
 
     log "--- $STATE: downloading DEM tiles (${AVAIL}GB free, SRS $SRS) ---"
-    wget -c -q --show-progress -i "$LIST" -P "$RAW_DEM/" 2>&1 | tee -a "$RUN_LOG"
+    download_tile_list "$LIST" "$RAW_DEM/" 2>&1 | tee -a "$RUN_LOG"
 
     TILE_COUNT=$(find "$RAW_DEM" -maxdepth 1 -name '*.tif' | wc -l)
     if (( TILE_COUNT == 0 )); then
