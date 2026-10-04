@@ -1,0 +1,78 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Humble-Helper-96
+#
+# Part of the terrain_builder pipeline — see HOW_TO_USE.md for full documentation.
+
+# =============================================================================
+# build_status.sh
+# One-screen progress summary for a running build_all_states.sh
+#
+# PURPOSE:
+#   Reads the build log and the working directories (read-only) and prints
+#   the current state, last pipeline step, tile count, states completed and
+#   free disk space — without scrolling through the full log.
+#
+# USAGE:
+#   ./scripts/build_status.sh                       # log: ~/conus_build.log
+#   ./scripts/build_status.sh /path/to/build.log    # or LOG=/path/... env var
+#   watch -n 60 ./scripts/build_status.sh           # refresh every minute
+#
+# EXAMPLE OUTPUT:
+#   Current state:  WA
+#   Last step:      [OK] All VRT tiles created successfully!
+#   Tiles on disk:  44 / 44
+#   States done:    0 / 48
+#   Disk free:      1.2T
+#
+# NOTES:
+#   - "Tiles on disk" includes a tile that is still downloading, and stays
+#     at its maximum during processing until process_dem.py clears raw_dem/
+#   - The output directory is read from the log's "Output dir:" header line
+# =============================================================================
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TERRAIN_BUILDER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+LOG="${1:-${LOG:-${HOME}/conus_build.log}}"
+
+if [ ! -f "${LOG}" ]; then
+    echo "[ERROR] Build log not found: ${LOG}"
+    echo "        Pass the log path: ./scripts/build_status.sh /path/to/build.log"
+    exit 1
+fi
+
+OUTPUT_DIR="$(grep -m1 -oP 'Output dir:\s+\K.*' "${LOG}" || true)"
+OUTPUT_DIR="${OUTPUT_DIR:-${TERRAIN_BUILDER_DIR}/output}"
+TOTAL_STATES="$(grep -m1 -oP '^\s*States:\s+\K[0-9]+' "${LOG}" || echo '?')"
+
+STATE="$(grep -oP 'Processing: \K[A-Z]{2}' "${LOG}" | tail -n 1)"
+LAST_STEP="$(grep -E '^\[(STEP|OK|WARN|ERROR)\]' "${LOG}" | tail -n 1)"
+DONE="$(grep -cE '^\[OK\] +[A-Z]{2} complete —' "${LOG}")"
+
+TILES="$(find "${TERRAIN_BUILDER_DIR}/raw_dem" -maxdepth 1 -name '*.tif' 2>/dev/null | wc -l)"
+DL_LIST="${TERRAIN_BUILDER_DIR}/USGS_DL_Lists/${STATE}_data.txt"
+if [ -n "${STATE}" ] && [ -f "${DL_LIST}" ]; then
+    LISTED="$(grep -c '^http' "${DL_LIST}")"
+else
+    LISTED='?'
+fi
+
+echo "Current state:  ${STATE:-(not started)}"
+echo "Last step:      ${LAST_STEP:-(none yet)}"
+echo "Tiles on disk:  ${TILES} / ${LISTED}"
+echo "States done:    ${DONE} / ${TOTAL_STATES}"
+echo "Disk free:      $(df -h "${OUTPUT_DIR}" 2>/dev/null | awk 'NR==2 {print $4}')  (${OUTPUT_DIR})"
+
+if grep -q '^\[ERROR\]' "${LOG}"; then
+    echo ""
+    echo "!! ERROR in log:"
+    grep -A3 '^\[ERROR\]' "${LOG}" | tail -n 5
+fi
+
+if grep -q '\[SUCCESS\] All' "${LOG}"; then
+    echo ""
+    echo "Build finished — next: python3 scripts/export_mbtiles.py --output-dir ${OUTPUT_DIR} --dest-dir <tileserver data dir>"
+fi
