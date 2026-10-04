@@ -100,6 +100,10 @@ _DEFAULT_WORKERS=$(( _DEFAULT_WORKERS < 1 ? 1 : _DEFAULT_WORKERS ))
 WORKERS="${WORKERS:-${_DEFAULT_WORKERS}}"
 OUTPUT_DIR="${OUTPUT_DIR:-${TERRAIN_BUILDER_DIR}/output}"
 
+# Flush Python output immediately so a redirected log (and build_status.sh)
+# stays current instead of lagging behind in 4–8 KB buffered chunks
+export PYTHONUNBUFFERED=1
+
 # =============================================================================
 # CONUS state list — 48 contiguous US states
 # Edit this list to run a subset, e.g.: STATES=(CT MA RI VT NH ME)

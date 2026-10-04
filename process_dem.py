@@ -248,7 +248,9 @@ def run_stage(script_path: Path, args: list, stage_name: str) -> bool:
 
     start_time = time.time()
 
-    cmd = [sys.executable, str(script_path)] + args
+    # -u: unbuffered, so sub-script output reaches the log as it happens
+    # (stdout is a pipe here, which Python would otherwise block-buffer)
+    cmd = [sys.executable, '-u', str(script_path)] + args
 
     process = subprocess.Popen(
         cmd,

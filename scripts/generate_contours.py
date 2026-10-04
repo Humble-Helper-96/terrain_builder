@@ -7,7 +7,6 @@ Produces a single GeoPackage with elevation contours
 import subprocess
 import sys
 from pathlib import Path
-import shutil
 from multiprocessing import Pool, cpu_count
 import tempfile
 
@@ -39,11 +38,24 @@ def has_valid_data(tile_path):
         # If we can't determine, assume it has data
         return True
 
+# elev_ft: elevation in feet, rounded to the nearest 20ft
+ELEV_FT_SQL = (
+    "SELECT *, CAST(ROUND((elev_m * 3.28084) / 20.0) * 20 AS INTEGER) AS elev_ft "
+    "FROM contours"
+)
+
 def generate_contour_for_tile(args):
-    """Generate contours for a single tile"""
-    tile_path, temp_dir, interval_meters = args
+    """
+    Generate contours for a single tile, then simplify them and add elev_ft.
+
+    Simplification and elev_ft are per-feature operations and the merge does
+    not join lines across tiles, so doing them here (in parallel) gives the
+    same result as one single-threaded pass over the merged state file.
+    """
+    tile_path, temp_dir, interval_meters, simplify_meters = args
     
     base_name = tile_path.stem
+    raw_gpkg = Path(temp_dir) / "raw" / f"{base_name}.gpkg"
     output_gpkg = Path(temp_dir) / f"{base_name}.gpkg"
     
     # Check if tile has valid data first
@@ -51,27 +63,43 @@ def generate_contour_for_tile(args):
         return (True, base_name, "skipped_no_data")
     
     try:
+        # Set cache size for better performance (preserve existing environment)
+        import os
+        env = os.environ.copy()
+        env["GDAL_CACHEMAX"] = "4096"
+
         cmd = [
             "gdal_contour",
             "-i", str(interval_meters),
             "-a", "elev_m",
             "-f", "GPKG",
             str(tile_path),
-            str(output_gpkg),
+            str(raw_gpkg),
             "-nln", "contours"
         ]
-        
-        # Set cache size for better performance (preserve existing environment)
-        import os
-        env = os.environ.copy()
-        env["GDAL_CACHEMAX"] = "4096"
-        
         result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-        
+        if result.returncode != 0:
+            return (False, base_name, result.stderr)
+
+        cmd = [
+            "ogr2ogr",
+            "-f", "GPKG",
+            str(output_gpkg),
+            str(raw_gpkg),
+            "-nln", "contours",
+            "-dialect", "SQLite",
+            "-sql", ELEV_FT_SQL,
+            "-simplify", str(simplify_meters),
+            "-lco", "SPATIAL_INDEX=NO"
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+        raw_gpkg.unlink(missing_ok=True)
+
         if result.returncode == 0:
             return (True, base_name, None)
         else:
-            return (False, base_name, result.stderr)
+            output_gpkg.unlink(missing_ok=True)
+            return (False, base_name, f"simplify failed: {result.stderr}")
             
     except Exception as e:
         return (False, base_name, str(e))
@@ -145,11 +173,13 @@ def generate_contours(tiles_dir, output_gpkg, interval_feet=40, simplify_meters=
         print()
         
         # Stage 1: Generate contours for each tile
-        print("Stage 1/4: Generating contours from tiles...")
+        print("Stage 1/2: Generating, simplifying and attributing contours per tile...")
         print("(Skipping tiles with no valid data)")
         print()
         
-        args_list = [(tile, temp_dir, interval_meters) for tile in input_files]
+        (Path(temp_dir) / "raw").mkdir()
+        args_list = [(tile, temp_dir, interval_meters, simplify_meters)
+                     for tile in input_files]
         
         failed = []
         skipped = 0
@@ -186,8 +216,8 @@ def generate_contours(tiles_dir, output_gpkg, interval_feet=40, simplify_meters=
                 print(f"  - {name}: {error[:100]}")
             return False
         
-        # Stage 2: Merge all contours into single GeoPackage
-        print("Stage 2/4: Merging contours into single GeoPackage...")
+        # Stage 2: Merge all (already simplified) contours into single GeoPackage
+        print("Stage 2/2: Merging contours into single GeoPackage...")
         
         # Find all generated gpkg files
         gpkg_files = sorted(Path(temp_dir).glob("*.gpkg"))
@@ -220,64 +250,9 @@ def generate_contours(tiles_dir, output_gpkg, interval_feet=40, simplify_meters=
         print("  [OK] Merged successfully")
         print()
         
-        # Stage 3: Add elevation in feet (rounded to 20ft)
-        print("Stage 3/4: Adding elevation attributes...")
-        
-        # Add elev_ft column
-        cmd1 = [
-            "ogrinfo",
-            str(output_gpkg),
-            "-sql", "ALTER TABLE contours ADD COLUMN elev_ft INTEGER"
-        ]
-        
-        result = subprocess.run(cmd1, capture_output=True, text=True)
-        
-        if result.returncode != 0 and "already exists" not in result.stderr.lower():
-            print(f"Warning: Could not add elev_ft column: {result.stderr}")
-        
-        # Update elev_ft column (convert meters to feet, round to nearest 20ft)
-        cmd2 = [
-            "ogrinfo",
-            str(output_gpkg),
-            "-sql", "UPDATE contours SET elev_ft = CAST(ROUND((elev_m * 3.28084) / 20.0) * 20 AS INTEGER)"
-        ]
-        
-        result = subprocess.run(cmd2, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            print(f"Warning: Could not update elev_ft: {result.stderr}")
-        
-        print("  [OK] Added elev_ft column (rounded to 20ft)")
+        print("  [OK] elev_ft column (rounded to 20ft) and simplification "
+              f"({simplify_meters}m) applied per tile in Stage 1")
         print()
-        
-    # Stage 4: Simplify geometry
-    print("Stage 4/4: Simplifying geometry...")
-
-    simplified_gpkg = output_gpkg.parent / f"{output_gpkg.stem}_simplified.gpkg"
-
-    cmd = [
-        "ogr2ogr",
-        "-f", "GPKG",
-        str(simplified_gpkg),
-        str(output_gpkg),
-        "-nln", "contours",
-        "-simplify", str(simplify_meters),
-        "-lco", "SPATIAL_INDEX=YES",
-        "-progress"
-    ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True)
-
-    if result.returncode != 0:
-        print(f"Warning: Could not simplify geometry: {result.stderr}")
-        print(f"  Using unsimplified version")
-        simplified_gpkg = output_gpkg
-    else:
-        print(f"  [OK] Simplified (tolerance: {simplify_meters}m)")
-        # Replace original with simplified
-        shutil.move(str(simplified_gpkg), str(output_gpkg))
-
-    print()
 
     # Stop resource monitoring and get stats
     resource_stats = None

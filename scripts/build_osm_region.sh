@@ -55,6 +55,7 @@ source "$BASE_DIR/scripts/download_tiles.sh"
 cd "$BASE_DIR" || exit 1
 
 WORKERS="${WORKERS:-4}"
+export PYTHONUNBUFFERED=1   # keep the run log current (no block-buffered Python output)
 MIN_FREE_GB="${MIN_FREE_GB:-80}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-$BASE_DIR/output}"
 RAW_DEM="$BASE_DIR/raw_dem"
