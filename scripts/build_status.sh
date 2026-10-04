@@ -21,6 +21,8 @@
 # EXAMPLE OUTPUT:
 #   Current state:  WA
 #   Last step:      [OK] All VRT tiles created successfully!
+#   Pipeline stage: 2. Generate Contours from VRT Tiles
+#     Sub-step:     Stage 2/2: Merging contours into single GeoPackage...
 #   Tiles on disk:  44 / 44
 #   States done:    0 / 48
 #   Disk free:      1.2T
@@ -50,6 +52,17 @@ TOTAL_STATES="$(grep -m1 -oP '^\s*States:\s+\K[0-9]+' "${LOG}" || echo '?')"
 
 STATE="$(grep -oP 'Processing: \K[A-Z]{2}' "${LOG}" | tail -n 1)"
 LAST_STEP="$(grep -E '^\[(STEP|OK|WARN|ERROR)\]' "${LOG}" | tail -n 1)"
+
+# Pipeline stage (process_dem.py "STAGE: ..." banner) and the latest
+# "Phase n/m" / "Stage n/m" line printed by that stage's sub-script, both
+# scoped to the current state. tr splits \r-separated progress updates.
+read -r -d '' STAGE_AWK <<'AWK'
+/Processing: [A-Z][A-Z]/        { stage = ""; sub_step = "" }
+/^STAGE: /                      { stage = substr($0, 8); sub_step = "" }
+/^ *(Phase|Stage) [0-9]+\/[0-9]+:/ { sub_step = $0; sub(/^ +/, "", sub_step) }
+END                             { print stage; print sub_step }
+AWK
+{ read -r PIPELINE_STAGE; read -r SUB_STEP; } < <(tr '\r' '\n' < "${LOG}" | awk "${STAGE_AWK}")
 DONE="$(grep -cE '^\[OK\] +[A-Z]{2} complete —' "${LOG}")"
 
 TILES="$(find "${TERRAIN_BUILDER_DIR}/raw_dem" -maxdepth 1 -name '*.tif' 2>/dev/null | wc -l)"
@@ -62,6 +75,10 @@ fi
 
 echo "Current state:  ${STATE:-(not started)}"
 echo "Last step:      ${LAST_STEP:-(none yet)}"
+if [ -n "${PIPELINE_STAGE}" ]; then
+    echo "Pipeline stage: ${PIPELINE_STAGE}"
+    echo "  Sub-step:     ${SUB_STEP:-(starting)}"
+fi
 echo "Tiles on disk:  ${TILES} / ${LISTED}"
 echo "States done:    ${DONE} / ${TOTAL_STATES}"
 echo "Disk free:      $(df -h "${OUTPUT_DIR}" 2>/dev/null | awk 'NR==2 {print $4}')  (${OUTPUT_DIR})"
