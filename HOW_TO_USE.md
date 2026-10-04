@@ -160,6 +160,8 @@ terrain_builder/
 │   ├── update_dem_lists.py     Refresh USGS_DL_Lists/ against the USGS S3 bucket
 │   ├── build_all_states.sh     Batch script: full CONUS build
 │   ├── build_osm_region.sh     Batch script: build per Geofabrik US region
+│   ├── build_status.sh         One-screen progress summary for a running build
+│   ├── download_tiles.sh       Per-tile DEM downloader used by the batch scripts
 │   └── resource_monitor.py     Optional: CPU/RAM usage tracking
 │
 ├── shape_files/                Region boundary GeoPackages
@@ -313,6 +315,31 @@ After all states complete, run the export manually:
 python3 scripts/export_mbtiles.py \
     --output-dir output \
     --dest-dir /path/to/tileserver/data
+```
+
+### Monitoring a running build
+
+The batch script prints to the terminal; run it in `tmux` (or `screen`) with
+the output saved to a log so you can detach and check in later:
+
+```bash
+./scripts/build_all_states.sh > ~/conus_build.log 2>&1
+```
+
+`scripts/build_status.sh` reads that log (read-only) and prints a short
+summary — current state, last pipeline step, tiles downloaded, states done
+and free disk space — plus any `[ERROR]` lines:
+
+```bash
+./scripts/build_status.sh                     # reads ~/conus_build.log
+./scripts/build_status.sh /path/to/build.log  # or another log
+watch -n 60 ./scripts/build_status.sh         # refresh every minute
+```
+
+To follow just the milestones live:
+
+```bash
+tail -f ~/conus_build.log | grep --line-buffered -E 'Processing:|^\[(STEP|OK|WARN|ERROR)\]'
 ```
 
 > **Resuming a partial CONUS run:**
