@@ -224,13 +224,16 @@ for STATE in "${STATES[@]}"; do
     # Run the DEM processing pipeline for this state
     # ------------------------------------------------------------------
     echo "[STEP]  Running process_dem.py for ${STATE}..."
-    if ! python3 "${TERRAIN_BUILDER_DIR}/process_dem.py" \
+    # Capture the real exit code: inside `if ! cmd; then`, $? is the
+    # negated status (always 0), which made a failed state exit 0.
+    EXIT_CODE=0
+    python3 "${TERRAIN_BUILDER_DIR}/process_dem.py" \
             --state "${STATE}" \
             --workers "${WORKERS}" \
             --yes \
             --skip-export \
-            --output-dir "${OUTPUT_DIR}"; then
-        EXIT_CODE=$?
+            --output-dir "${OUTPUT_DIR}" || EXIT_CODE=$?
+    if (( EXIT_CODE != 0 )); then
         echo ""
         echo "[ERROR] process_dem.py failed for ${STATE} (exit code ${EXIT_CODE})"
         echo "        Check the log in: ${TERRAIN_BUILDER_DIR}/logs/"
