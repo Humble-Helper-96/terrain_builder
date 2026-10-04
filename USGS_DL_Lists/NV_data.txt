@@ -54,4 +54,3 @@ https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n43w11
 https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n43w121/USGS_13_n43w121.tif
 https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w117/USGS_13_n37w117.tif
 https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n43w120/USGS_13_n43w120.tif
-https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n37w117/USGS_13_n37w117.tif

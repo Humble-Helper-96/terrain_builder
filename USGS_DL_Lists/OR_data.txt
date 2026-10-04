@@ -52,7 +52,3 @@ https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n47w12
 https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n43w120/USGS_13_n43w120.tif
 https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n45w125/USGS_13_n45w125.tif
 https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n46w125/USGS_13_n46w125.tif
-https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n43w120/USGS_13_n43w120.tif
-https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n47w125/USGS_13_n47w125.tif
-https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n45w125/USGS_13_n45w125.tif
-https://prd-tnm.s3.amazonaws.com/StagedProducts/Elevation/13/TIFF/current/n46w125/USGS_13_n46w125.tif

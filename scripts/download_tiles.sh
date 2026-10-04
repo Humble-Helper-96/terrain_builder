@@ -25,7 +25,8 @@
 #     is already complete is reported as SKIP)
 #   - Like `wget -i`, a failed tile does not stop the remaining downloads;
 #     the function prints a summary and returns non-zero if any tile failed
-#   - Blank lines, '#' comments and Windows line endings in LIST are ignored
+#   - Blank lines, '#' comments, duplicate URLs and Windows line endings in
+#     LIST are ignored
 # =============================================================================
 
 # Format a byte count as MB or GB
@@ -53,7 +54,8 @@ download_tile_list() {
     local list="$1" dest="$2"
     local urls=() line url name file tmp_err
     local i total width rc before after elapsed start tile_start reason
-    local ok=0 skipped=0 bytes=0 failed=()
+    local ok=0 skipped=0 bytes=0 dupes=0 failed=()
+    local -A seen=()
 
     mkdir -p "$dest"
 
@@ -62,6 +64,11 @@ download_tile_list() {
         line="${line#"${line%%[![:space:]]*}"}"
         line="${line%"${line##*[![:space:]]}"}"
         [[ -z "$line" || "$line" == \#* ]] && continue
+        if [[ -n "${seen[$line]+x}" ]]; then
+            dupes=$(( dupes + 1 ))
+            continue
+        fi
+        seen[$line]=1
         urls+=("$line")
     done < "$list"
 
@@ -70,6 +77,8 @@ download_tile_list() {
         echo "[WARN]  No URLs found in ${list}"
         return 1
     fi
+
+    (( dupes > 0 )) && echo "[WARN]  Ignoring ${dupes} duplicate URL(s) in ${list}"
 
     width=${#total}
     start=${SECONDS}

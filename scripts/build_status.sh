@@ -68,7 +68,8 @@ DONE="$(grep -cE '^\[OK\] +[A-Z]{2} complete —' "${LOG}")"
 TILES="$(find "${TERRAIN_BUILDER_DIR}/raw_dem" -maxdepth 1 -name '*.tif' 2>/dev/null | wc -l)"
 DL_LIST="${TERRAIN_BUILDER_DIR}/USGS_DL_Lists/${STATE}_data.txt"
 if [ -n "${STATE}" ] && [ -f "${DL_LIST}" ]; then
-    LISTED="$(grep -c '^http' "${DL_LIST}")"
+    # Unique URLs: a duplicated list entry is downloaded only once
+    LISTED="$(grep '^http' "${DL_LIST}" | tr -d '\r' | sort -u | wc -l)"
 else
     LISTED='?'
 fi
