@@ -63,7 +63,9 @@ read -r -d '' STAGE_AWK <<'AWK'
 END                             { print stage; print sub_step }
 AWK
 { read -r PIPELINE_STAGE; read -r SUB_STEP; } < <(tr '\r' '\n' < "${LOG}" | awk "${STAGE_AWK}")
-DONE="$(grep -cE '^\[OK\] +[A-Z]{2} complete —' "${LOG}")"
+# Unique states finished in this log, whether built ("[OK] XX complete —")
+# or skipped on a resumed run ("[SKIP] XX already complete")
+DONE="$(grep -oP '^\[(OK|SKIP)\] +\K[A-Z]{2}(?= (complete —|already complete))' "${LOG}" | sort -u | wc -l)"
 
 TILES="$(find "${TERRAIN_BUILDER_DIR}/raw_dem" -maxdepth 1 -name '*.tif' 2>/dev/null | wc -l)"
 DL_LIST="${TERRAIN_BUILDER_DIR}/USGS_DL_Lists/${STATE}_data.txt"
@@ -84,10 +86,13 @@ echo "Tiles on disk:  ${TILES} / ${LISTED}"
 echo "States done:    ${DONE} / ${TOTAL_STATES}"
 echo "Disk free:      $(df -h "${OUTPUT_DIR}" 2>/dev/null | awk 'NR==2 {print $4}')  (${OUTPUT_DIR})"
 
-if grep -q '^\[ERROR\]' "${LOG}"; then
+# Only report errors from the latest run: a resumed build appended to the
+# same log would otherwise keep showing the error that stopped the last one
+RUN_START="$(grep -n 'Full CONUS Build' "${LOG}" | tail -n 1 | cut -d: -f1)"
+if tail -n +"${RUN_START:-1}" "${LOG}" | grep -q '^\[ERROR\]'; then
     echo ""
     echo "!! ERROR in log:"
-    grep -A3 '^\[ERROR\]' "${LOG}" | tail -n 5
+    tail -n +"${RUN_START:-1}" "${LOG}" | grep -A3 '^\[ERROR\]' | tail -n 5
 fi
 
 if grep -q '\[SUCCESS\] All' "${LOG}"; then

@@ -49,6 +49,9 @@
 #                  Default: terrain_builder/output/
 #   STATES       — Ordered list of CONUS state abbreviations to process
 #                  Edit to run a subset, e.g. STATES=(CT MA RI VT NH ME)
+#   START_AT     — Skip every state before this one in STATES and start there
+#                  Example: START_AT=IL ./scripts/build_all_states.sh
+#   FORCE        — Set FORCE=1 to rebuild states that are already marked complete
 #
 # DISK SPACE:
 #   Raw DEM tiles per state:   1–20 GB  (varies by state size and resolution)
@@ -58,13 +61,14 @@
 #   western states (CA, MT, WY, CO, NM).
 #
 # RESUMABILITY:
-#   - wget -c resumes partial downloads if interrupted mid-state
-#   - raw_dem/ is cleared at the START of each state, not the end
-#   - If process_dem.py fails mid-state, re-running the script will
-#     re-download and re-process that state from scratch
-#   - Already-completed states (output/contours_XX.gpkg exists) are NOT
-#     automatically skipped — comment out completed states in STATES if
-#     you want to resume a partial CONUS run without reprocessing them
+#   - Each finished state gets a marker file, OUTPUT_DIR/.complete_<STATE>,
+#     written only after its outputs are flushed to disk. Re-running the
+#     script skips states with a marker (and both outputs), so after a crash
+#     or power cut just start it again (FORCE=1 rebuilds everything)
+#   - Runs from before markers existed have none: use START_AT=<state> to
+#     resume at the state that was interrupted
+#   - The interrupted state itself is redone from scratch (raw_dem/ is
+#     cleared at the START of each state, and outputs are overwritten)
 #
 # NOTES:
 #   - Estimated runtime: 1–6 hours per state depending on hardware
@@ -116,6 +120,22 @@ STATES=(
     MA RI CT NY NJ PA MD DE
 )
 
+# Resume part-way through the list: START_AT=IL skips WA … MI
+if [ -n "${START_AT:-}" ]; then
+    START_AT="${START_AT^^}"
+    for i in "${!STATES[@]}"; do
+        if [ "${STATES[$i]}" == "${START_AT}" ]; then
+            SKIPPED_BEFORE=("${STATES[@]:0:$i}")
+            STATES=("${STATES[@]:$i}")
+            break
+        fi
+    done
+    if [ "${STATES[0]}" != "${START_AT}" ]; then
+        echo "[ERROR] START_AT=${START_AT} is not in the STATES list"
+        exit 1
+    fi
+fi
+
 # =============================================================================
 # Pre-flight checks
 # =============================================================================
@@ -126,6 +146,9 @@ echo "  Project dir:   ${TERRAIN_BUILDER_DIR}"
 echo "  Output dir:    ${OUTPUT_DIR}"
 echo "  Workers:       ${WORKERS}  (of ${_TOTAL_CPUS} CPUs)"
 echo "  States:        ${#STATES[@]}"
+if [ -n "${START_AT:-}" ]; then
+    echo "  Start at:      ${START_AT}  (skipping ${#SKIPPED_BEFORE[@]}: ${SKIPPED_BEFORE[*]})"
+fi
 echo "  Started:       $(date)"
 echo "============================================================"
 echo ""
@@ -185,6 +208,16 @@ for STATE in "${STATES[@]}"; do
     STATE_START=${SECONDS}
     DL_LIST="${TERRAIN_BUILDER_DIR}/USGS_DL_Lists/${STATE}_data.txt"
     RAW_DEM_DIR="${TERRAIN_BUILDER_DIR}/raw_dem"
+    DONE_MARKER="${OUTPUT_DIR}/.complete_${STATE}"
+
+    # Skip states finished by an earlier run (marker + both outputs present)
+    if [ -z "${FORCE:-}" ] && [ -f "${DONE_MARKER}" ] \
+            && [ -s "${OUTPUT_DIR}/contours_${STATE}.gpkg" ] \
+            && [ -s "${OUTPUT_DIR}/hillshade_${STATE}.tif" ]; then
+        COMPLETED=$(( COMPLETED + 1 ))
+        echo "[SKIP]  ${STATE} already complete ($(cat "${DONE_MARKER}"))  (${COMPLETED}/${#STATES[@]})"
+        continue
+    fi
 
     echo ""
     echo "========================================================"
@@ -251,6 +284,12 @@ for STATE in "${STATES[@]}"; do
     STATE_MINS=$(( STATE_ELAPSED / 60 ))
     STATE_SECS=$(( STATE_ELAPSED % 60 ))
     COMPLETED=$(( COMPLETED + 1 ))
+
+    # Flush this state's outputs to disk before marking it complete, so a
+    # power cut can never leave a marker next to a truncated output file
+    sync -f "${OUTPUT_DIR}" 2>/dev/null || sync
+    date '+%Y-%m-%d %H:%M:%S' > "${DONE_MARKER}"
+    sync -f "${OUTPUT_DIR}" 2>/dev/null || sync
 
     echo ""
     echo "[OK]    ${STATE} complete — ${STATE_MINS}m ${STATE_SECS}s  (${COMPLETED}/${#STATES[@]} states done)"
