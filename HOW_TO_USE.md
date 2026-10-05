@@ -342,10 +342,19 @@ To follow just the milestones live:
 tail -f ~/conus_build.log | grep --line-buffered -E 'Processing:|^\[(STEP|OK|WARN|ERROR)\]'
 ```
 
-> **Resuming a partial CONUS run:**
-> The script does not auto-skip already-completed states. To resume after
-> a failure, edit the `STATES=(...)` array in `build_all_states.sh` to
-> list only the remaining states, then re-run.
+> **Resuming a partial CONUS run (crash, power cut, failed state):**
+> Each finished state gets a marker, `OUTPUT_DIR/.complete_<STATE>`, written
+> after its outputs are flushed to disk. Just re-run the script: marked states
+> are skipped and the interrupted state is redone from scratch. Append to the
+> same log so `build_status.sh` keeps counting across runs:
+>
+> ```bash
+> ./scripts/build_all_states.sh 2>&1 | tee -a ~/conus_build.log
+> ```
+>
+> Runs from before markers were added have none — resume those at the state
+> that was interrupted with `START_AT=<STATE>` (e.g. `START_AT=IL`).
+> `FORCE=1` rebuilds states even if they are marked complete.
 
 ### Per-region builds (Geofabrik US extracts)
 
