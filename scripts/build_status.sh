@@ -35,6 +35,10 @@
 
 set -uo pipefail
 
+# Every grep on the log uses -a: an unclean shutdown (e.g. a power cut) can
+# leave NUL bytes in the log, and grep then treats it as binary and stops
+# printing matching lines, which froze the status on a stale state.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TERRAIN_BUILDER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -46,12 +50,12 @@ if [ ! -f "${LOG}" ]; then
     exit 1
 fi
 
-OUTPUT_DIR="$(grep -m1 -oP 'Output dir:\s+\K.*' "${LOG}" || true)"
+OUTPUT_DIR="$(grep -a -m1 -oP 'Output dir:\s+\K.*' "${LOG}" || true)"
 OUTPUT_DIR="${OUTPUT_DIR:-${TERRAIN_BUILDER_DIR}/output}"
-TOTAL_STATES="$(grep -m1 -oP '^\s*States:\s+\K[0-9]+' "${LOG}" || echo '?')"
+TOTAL_STATES="$(grep -a -m1 -oP '^\s*States:\s+\K[0-9]+' "${LOG}" || echo '?')"
 
-STATE="$(grep -oP 'Processing: \K[A-Z]{2}' "${LOG}" | tail -n 1)"
-LAST_STEP="$(grep -E '^\[(STEP|OK|WARN|ERROR)\]' "${LOG}" | tail -n 1)"
+STATE="$(grep -a -oP 'Processing: \K[A-Z]{2}' "${LOG}" | tail -n 1)"
+LAST_STEP="$(grep -a -E '^\[(STEP|OK|WARN|ERROR)\]' "${LOG}" | tail -n 1)"
 
 # Pipeline stage (process_dem.py "STAGE: ..." banner) and the latest
 # "Phase n/m" / "Stage n/m" line printed by that stage's sub-script, both
@@ -62,10 +66,10 @@ read -r -d '' STAGE_AWK <<'AWK'
 /^ *(Phase|Stage) [0-9]+\/[0-9]+:/ { sub_step = $0; sub(/^ +/, "", sub_step) }
 END                             { print stage; print sub_step }
 AWK
-{ read -r PIPELINE_STAGE; read -r SUB_STEP; } < <(tr '\r' '\n' < "${LOG}" | awk "${STAGE_AWK}")
+{ read -r PIPELINE_STAGE; read -r SUB_STEP; } < <(tr -d '\000' < "${LOG}" | tr '\r' '\n' | awk "${STAGE_AWK}")
 # Unique states finished in this log, whether built ("[OK] XX complete —")
 # or skipped on a resumed run ("[SKIP] XX already complete")
-DONE="$(grep -oP '^\[(OK|SKIP)\] +\K[A-Z]{2}(?= (complete —|already complete))' "${LOG}" | sort -u | wc -l)"
+DONE="$(grep -a -oP '^\[(OK|SKIP)\] +\K[A-Z]{2}(?= (complete —|already complete))' "${LOG}" | sort -u | wc -l)"
 
 TILES="$(find "${TERRAIN_BUILDER_DIR}/raw_dem" -maxdepth 1 -name '*.tif' 2>/dev/null | wc -l)"
 DL_LIST="${TERRAIN_BUILDER_DIR}/USGS_DL_Lists/${STATE}_data.txt"
@@ -88,14 +92,14 @@ echo "Disk free:      $(df -h "${OUTPUT_DIR}" 2>/dev/null | awk 'NR==2 {print $4
 
 # Only report errors from the latest run: a resumed build appended to the
 # same log would otherwise keep showing the error that stopped the last one
-RUN_START="$(grep -n 'Full CONUS Build' "${LOG}" | tail -n 1 | cut -d: -f1)"
-if tail -n +"${RUN_START:-1}" "${LOG}" | grep -q '^\[ERROR\]'; then
+RUN_START="$(grep -a -n 'Full CONUS Build' "${LOG}" | tail -n 1 | cut -d: -f1)"
+if tail -n +"${RUN_START:-1}" "${LOG}" | grep -a -q '^\[ERROR\]'; then
     echo ""
     echo "!! ERROR in log:"
-    tail -n +"${RUN_START:-1}" "${LOG}" | grep -A3 '^\[ERROR\]' | tail -n 5
+    tail -n +"${RUN_START:-1}" "${LOG}" | grep -a -A3 '^\[ERROR\]' | tail -n 5
 fi
 
-if grep -q '\[SUCCESS\] All' "${LOG}"; then
+if grep -a -q '\[SUCCESS\] All' "${LOG}"; then
     echo ""
     echo "Build finished — next: python3 scripts/export_mbtiles.py --output-dir ${OUTPUT_DIR} --dest-dir <tileserver data dir>"
 fi
